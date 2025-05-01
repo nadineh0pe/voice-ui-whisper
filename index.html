@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speech to Text</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 2em;
+    }
+    button {
+      font-size: 1.5em;
+      padding: 1em 2em;
+      border: none;
+      border-radius: 12px;
+      background-color: #007bff;
+      color: white;
+      margin-top: 2em;
+    }
+    #result {
+      margin-top: 2em;
+      font-size: 1.2em;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎙️ Speak to Transcribe</h1>
+  <button id="recordBtn">Start Recording</button>
+  <div id="result">Transcription will appear here...</div>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+
+    const recordBtn = document.getElementById('recordBtn');
+    const resultDiv = document.getElementById('result');
+
+    recordBtn.addEventListener('click', async () => {
+      if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const formData = new FormData();
+          formData.append('audio', audioBlob, 'recording.webm');
+
+          resultDiv.innerText = 'Transcribing...';
+
+          const res = await fetch('http://localhost:5005/transcribe', {
+            method: 'POST',
+            body: formData
+          });
+
+          const data = await res.json();
+          resultDiv.innerText = data.text || 'No transcription result.';
+        };
+
+        mediaRecorder.start();
+        recordBtn.innerText = 'Stop Recording';
+      } else {
+        mediaRecorder.stop();
+        recordBtn.innerText = 'Start Recording';
+      }
+    });
+  </script>
+</body>
+</html>
